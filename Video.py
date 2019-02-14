@@ -1,8 +1,8 @@
-# $Id: Video.py,v 1.5 2007/01/31 00:38:53 ping Exp $
+# $Id: Video.py,v 1.9 2007/02/14 05:49:01 ping Exp $
 
 from pygame import display, image, FULLSCREEN
 
-def loadimage(i):
+def load_image(i, __trace__=0):
     return image.fromstring(i.pixels, (i.width, i.height), 'RGB')
 
 class Video:
@@ -10,8 +10,8 @@ class Video:
         display.init()
         self.screen = display.set_mode(video.size, FULLSCREEN)
         self.video = video
-        self.images = [loadimage(l.screen) for l in video.layouts]
-        self.sprites = [loadimage(sprite) for sprite in video.sprites]
+        self.images = [load_image(l.screen) for l in video.layouts]
+        self.sprites = [load_image(sprite) for sprite in video.sprites]
         self.goto(0)
 
     def goto(self, layout_i):

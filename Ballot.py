@@ -1,27 +1,35 @@
-# $Id: Ballot.py,v 1.16 2007/01/30 07:26:43 ping Exp $
+# $Id: Ballot.py,v 1.20 2007/02/13 23:22:42 ping Exp $
 
 class Ballot:
     def __init__(self, filename, rotate=0):
         self.data = open(filename).read()
         stream = open(filename)
-        self.model = Model(stream)
+        self.model = model = Model(stream)
         self.video = Video(stream)
         self.audio = Audio(stream)
 
-        rotated = []
-        for contest in self.model.contests:
-            rotated.append(range(len(contest.options)))
-            if rotate:
-                import random
-                random.shuffle(rotated[-1])
-        for page in self.model.pages:
+        area_option_is = [[] for group_i in range(len(model.groups))]
+        for page in model.pages:
             for area in page.option_areas:
-                area.option_i = i = rotated[area.contest_i].pop(0)
-                area.option = self.model.contests[area.contest_i].options[i]
+                area_option_is[area.group_i].append(area.option_i)
+        group_option_is = []
+        for group_i, group in enumerate(model.groups):
+            option_is = []
+            for option_i in range(len(group.options)):
+                if option_i not in area_option_is[group_i]:
+                    option_is.append(option_i)
+            if rotate:
+                random.shuffle(option_is)
+            group_option_is.append(option_is)
+        for page in model.pages:
+            for area in page.option_areas:
+                if area.option_i == -1:
+                    area.option_i = group_option_is[area.group_i].pop(0)
+                area.option = model.groups[area.group_i].options[area.option_i]
 
 class Model:
     def __init__(self, stream):
-        self.contests = getlist(stream, Contest)
+        self.groups = getlist(stream, Group)
         self.pages = getlist(stream, Page)
         self.timeout_milliseconds = getint(stream)
 
@@ -36,9 +44,11 @@ class Audio:
         self.sample_rate = getint(stream)
         self.clips = getlist(stream, Clip)
 
-class Contest:
+class Group:
     def __init__(self, stream):
+        self.type = getint(stream)
         self.max_sels = getint(stream)
+        self.max_chars = getint(stream)
         self.options = getlist(stream, Option)
 
 class Option:
@@ -46,6 +56,7 @@ class Option:
         self.unsel_sprite_i = getint(stream)
         self.sel_sprite_i = getint(stream)
         self.clip_i = getint(stream)
+        self.writein_group_i = getint(stream)
 
 class Page:
     def __init__(self, stream):
@@ -67,44 +78,48 @@ class TargetBinding:
 
 class Action:
     def __init__(self, stream):
-        self.clear_contest_is = getlist(stream, getint)
-        self.select_option_refs = getlist(stream, OptionRef)
-        self.option_area_i = getint(stream)
-        self.option_area_action = getint(stream)
-        self.default_sequence = Sequence(stream)
-        self.no_change_sequence = Sequence(stream)
-        self.overvote_sequence = Sequence(stream)
-        self.toggle_deselect_sequence = Sequence(stream)
         self.next_page_i = getint(stream)
         self.next_state_i = getint(stream)
+        self.clear_group_is = getlist(stream, getint)
+        self.option_op = getint(stream)
+        self.option_refs = getlist(stream, OptionRef)
+        self.option_area_op = getint(stream)
+        self.option_area_i = getint(stream)
+        self.default_feedback = Sequence(stream)
+        self.toggle_off_feedback = Sequence(stream)
+        self.no_effect_feedback = Sequence(stream)
+        self.full_feedback = Sequence(stream)
+        self.empty_feedback = Sequence(stream)
 
 class OptionRef:
     def __init__(self, stream):
-        self.contest_i = getint(stream)
+        self.group_i = getint(stream)
         self.option_i = getint(stream)
 
 class State:
     def __init__(self, stream):
         self.sprite_i = getint(stream)
         self.option_area_i = getint(stream)
-        self.entry_sequence = Sequence(stream)
+        self.entry_feedback = Sequence(stream)
         self.key_bindings = getlist(stream, KeyBinding)
-        self.timeout_sequence = Sequence(stream)
         self.timeout_page_i = getint(stream)
         self.timeout_state_i = getint(stream)
+        self.timeout_feedback = Sequence(stream)
 
 class OptionArea:
     def __init__(self, stream):
-        self.contest_i = getint(stream)
+        self.group_i = getint(stream)
+        self.option_i = getint(stream)
 
 class CounterArea:
     def __init__(self, stream):
-        self.contest_i = getint(stream)
-        self.number_sprite_i = getint(stream)
+        self.group_i = getint(stream)
+        self.sprite_i = getint(stream)
 
 class ReviewArea:
     def __init__(self, stream):
-        self.contest_i = getint(stream)
+        self.group_i = getint(stream)
+        self.cursor_sprite_i = getint(stream)
 
 class Sequence:
     def __init__(self, stream):
@@ -114,7 +129,7 @@ class Segment:
     def __init__(self, stream):
         self.type = getint(stream)
         self.clip_i = getint(stream)
-        self.contest_i = getint(stream)
+        self.group_i = getint(stream)
         self.option_i = getint(stream)
 
 class Clip:
@@ -128,17 +143,17 @@ class Layout:
         self.targets = getlist(stream, Rect)
         self.slots = getlist(stream, Rect)
 
+class Image:
+    def __init__(self, stream):
+        self.size = self.width, self.height = getint(stream), getint(stream)
+        self.pixels = stream.read(self.width * self.height * 3)
+
 class Rect:
     def __init__(self, stream):
         self.left = getint(stream)
         self.top = getint(stream)
         self.width = getint(stream)
         self.height = getint(stream)
-
-class Image:
-    def __init__(self, stream):
-        self.size = self.width, self.height = getint(stream), getint(stream)
-        self.pixels = stream.read(self.width * self.height * 3)
 
 def getlist(stream, Class):
     return [Class(stream) for i in range(getint(stream))]

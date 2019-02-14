@@ -1,12 +1,12 @@
-# $Id: Audio.py,v 1.5 2007/01/30 05:05:53 ping Exp $
+# $Id: Audio.py,v 1.6 2007/02/13 23:22:42 ping Exp $
 
 from pygame import mixer, USEREVENT
 import StringIO, struct
 
-def chunk(type, contents):
+def chunk(type, contents, __trace__=0):
     return type + struct.pack('<L', len(contents)) + contents
 
-def make_sound(rate, samples):
+def make_sound(rate, samples, __trace__=0):
     format = chunk('fmt ', struct.pack('<hHLLHH', 1, 1, rate, rate*2, 2, 16))
     buffer = StringIO.StringIO()
     buffer.write(chunk('RIFF', 'WAVE' + format + chunk('data', samples)))

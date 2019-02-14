@@ -1,0 +1,65 @@
+#!/usr/bin/python
+# $Id: runtest2,v 1.2 2007/02/15 10:05:50 ping Exp $
+
+import Ballot, Navigator, Video, Audio, Recorder, random
+from pygame import display, event, time, MOUSEBUTTONDOWN, KEYDOWN, USEREVENT
+
+ballot = Ballot.Ballot('ballot', 0)
+video = Video.Video(ballot.video)
+audio = Audio.Audio(ballot.audio)
+recorder = Recorder.Recorder(ballot)
+
+def initialize():
+    global navigator
+    navigator = Navigator.Navigator(ballot.model, video, audio, recorder)
+
+testing = False
+initialize()
+
+IDLE = USEREVENT + 1
+TICK = USEREVENT + 2
+
+while 1:
+    display.update()
+    e = event.wait()
+    if e.type == USEREVENT:
+        if not audio.next() and ballot.model.timeout_milliseconds > 0:
+            time.set_timer(IDLE, ballot.model.timeout_milliseconds)
+    if e.type in [IDLE, MOUSEBUTTONDOWN, KEYDOWN]:
+        time.set_timer(IDLE, 0)
+    if e.type == IDLE:
+        navigator.timeout()
+    if e.type == TICK and testing:
+        print 'test (%d, %d):' % (navigator.page_i, navigator.state_i),
+        if random.randrange(500) == 0:
+            print 'reset'
+            initialize()
+            time.set_timer(TICK, 40)
+        elif random.randrange(100) == 0:
+            print 'pause'
+            time.set_timer(TICK, 1000)
+        else:
+            if random.randrange(2) == 0 and video.layout.targets:
+                target_i = random.randrange(len(video.layout.targets))
+                print 'target', target_i
+                navigator.touch(target_i)
+            else:
+                keys = ',789uiojkl'
+                key_i = random.randrange(len(keys))
+                print 'key', key_i
+                navigator.key(ord(keys[key_i]))
+            time.set_timer(TICK, 40)
+    if e.type == MOUSEBUTTONDOWN:
+        target_i = video.locate(*e.pos)
+        if target_i is not None:
+            navigator.touch(target_i)
+    if e.type == KEYDOWN:
+        navigator.key(e.key)
+        if e.key == 32:
+            testing = not testing
+            if testing:
+                time.set_timer(TICK, 40)
+        if e.key == 13:
+            initialize()
+        if e.key == 27:
+            break

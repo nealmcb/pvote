@@ -22,10 +22,11 @@ class Section(Named):
             contest.section = self
 
 class Contest(Named):
-    def __init__(self, name, maxsels, options=[],
+    def __init__(self, name, maxsels, maxchars, options=[],
                        directions=None, subtitle=None, question=None):
         self.name = name
         self.maxsels = maxsels
+        self.maxchars = maxchars
         self.options = options
         self.directions = directions or make_directions(maxsels)
         if question and maxsels == 1 and len(options) == 2:
@@ -41,7 +42,7 @@ class Option(Named):
 ballot = Ballot(
     'Tuesday, November 7, 2006 - Contra Costa County - Ballot Style 167', [
     Section('State', [
-        Contest('Governor', 1, [
+        Contest('Governor', 1, 25, [
             Option('Phil Angelides',
                    'Democratic\nTreasurer of the State of California'),
             Option('Arnold Schwarzenegger', 'Republican\nGovernor'),
@@ -50,7 +51,7 @@ ballot = Ballot(
             Option('Peter Miguel Camejo', 'Green\nFinancial Advisor'),
             Option('Edward C. Noonan',
                    'American Independent\nComputer Shop Owner')]),
-        Contest('Lieutenant Governor', 1, [
+        Contest('Lieutenant Governor', 1, 0, [
             Option('Lynette Shaw', 'Libertarian\nCaregiver/Musician'),
             Option('Jim King', 'American Independent\nReal Estate Broker'),
             Option('John Garamendi',
@@ -59,7 +60,7 @@ ballot = Ballot(
             Option('Donna J. Warren', 'Green\nFinancial Manager/Author'),
             Option('Stewart A. Alexander',
                    'Peace And Freedom\nAutomobile Sales Consultant')]),
-        Contest('Secretary of State', 1, [
+        Contest('Secretary of State', 1, 25, [
             Option('Gail K. Lightfoot', 'Libertarian\nRetired Nurse'),
             Option('Margie Akin',
                    'Peace And Freedom\nArchaeologist/Medical Anthropologist'),
@@ -69,7 +70,7 @@ ballot = Ballot(
                    'American Independent\nSmall Business Owner'),
             Option('Bruce McPherson',
                    'Republican\nAppointed Secretary of State')]),
-        Contest('Attorney General', 1, [
+        Contest('Attorney General', 1, 0, [
             Option('Jack Harrison',
                    'Peace And Freedom\nAttorney/Rent Commissioner'),
             Option('Jerry Brown', 'Democratic\nOakland Mayor/Attorney'),
@@ -78,7 +79,7 @@ ballot = Ballot(
             Option('Chuck Poochigian',
                    'Republican\nCalifornia Senator/Attorney')])]),
     Section('United States Congress', [
-        Contest('United States Senator', 1, [
+        Contest('United States Senator', 1, 0, [
             Option('Marsha Feinland', 'Peace And Freedom\nRetired Teacher'),
             Option('Dianne Feinstein', 'Democratic\nUnited States Senator'),
             Option('Don J. Grundmann',
@@ -92,7 +93,7 @@ ballot = Ballot(
             Option('Camden McConnell', 'Libertarian\nStructural Engineer'),
             Option('George Miller', 'Democratic\nU. S. Representative')])]),
     Section('State Measures', [
-        Contest('Proposition 1A', 1, [Option('Yes'), Option('No')], '',
+        Contest('Proposition 1A', 1, 0, [Option('Yes'), Option('No')], '',
                 'Transportation funding protection.  '
                 'Legislative constitutional amendment.', '''
 Protects transportation funding for traffic congestion relief projects,
@@ -104,7 +105,7 @@ from states sales tax on motor vehicle fuels to be fully repaid within
 the three years.  Restricts loans to no more than twice in any 10-year
 period.  Fiscal Impact: No revenue effect or cost effects.  Increases
 stability of funding to transportation in 2007 and thereafter.'''),
-        Contest('Proposition 1B', 1, [Option('Yes'), Option('No')], '',
+        Contest('Proposition 1B', 1, 0, [Option('Yes'), Option('No')], '',
                 'Highway safety, traffic reduction, air quality, '
                 'and port security bond act of 2006.', '''
 This act makes safety improvements and repairs to state highways,
@@ -117,18 +118,18 @@ not to exceed nineteen billion nine hundred twenty-five million dollars
 ($19,925,000,000).  Fiscal Impact: State costs of approximately $38.9
 billion over 30 years to repay bonds.  Additional unknown state and
 local operations and maintenance costs.'''),
-        Contest('Proposition 1C', 1, [Option('Yes'), Option('No')], '',
+        Contest('Proposition 1C', 1, 0, [Option('Yes'), Option('No')], '',
                 'Housing and emergency shelter trust fund act of 2006.', '''
 For the purpose of providing shelters for battered women...
                 '''),
-        Contest('Proposition 1D', 1, [Option('Yes'), Option('No')], '',
+        Contest('Proposition 1D', 1, 0, [Option('Yes'), Option('No')], '',
                 'Kindergarten-university public education facilities '
                 'bond act of 2006.', '''
 This ten bilion four hundred sixteen million dollar ($10,416,000,000)
 bond issue will provided needed funding to relieve public school
 overcrowding...
                 '''),
-        Contest('Proposition 1E', 1, [Option('Yes'), Option('No')], '',
+        Contest('Proposition 1E', 1, 0, [Option('Yes'), Option('No')], '',
                 'Disaster preparedness and flood prevention '
                 'bond act of 2006.', '''
 This act rebuilds and repairs California's most vulnerable...
@@ -138,3 +139,6 @@ ballot.sections[1:2] = []
 ballot.sections[0].contests[1:2] = []
 ballot.sections[0].contests[2:] = []
 ballot.sections[1].contests[2:] = []
+
+#ballot.sections[0].contests[1:] = []
+#ballot.sections[1].contests[1:] = []
