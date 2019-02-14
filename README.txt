@@ -1,5 +1,5 @@
 Prerendered Voting User Interface
-Release 0.4, 2006-07-31
+Release 0.5, 2006-12-24
 
 This software implements an electronic voting machine.  The design
 of the software separates the definition of the user interface from
@@ -18,8 +18,8 @@ The prototype is written in Python and consists of five small parts:
 
     Total         293 lines (ignoring blank lines and comments)
 
-Included here is a sample ballot definition file called "ballot".
-To run the prototype:
+Included here is a sample ballot definition file called "ballot" and
+an empty vote storage file called "votes".  To run the prototype:
 
     1.  Ensure that you have Python 2.3 and Pygame installed.
         (They run on many computing platforms and are available

@@ -1,4 +1,4 @@
-# $Id: Video.py,v 1.8 2006/08/01 18:20:09 ping Exp $
+# $Id: Video.py,v 1.7 2006/03/30 08:19:42 ping Exp $
 
 from pygame import display, image
 

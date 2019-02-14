@@ -1,4 +1,4 @@
-# $Id: Navigator.py,v 1.6 2006/08/01 18:20:09 ping Exp $
+# $Id: Navigator.py,v 1.5 2006/03/30 08:19:42 ping Exp $
 
 class Navigator:
     def __init__(self, model, video, recorder):
