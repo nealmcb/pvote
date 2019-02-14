@@ -1,4 +1,4 @@
-# $Id: Audio.py,v 1.6 2007/03/13 10:34:04 ping Exp $
+# $Id: Audio.py,v 1.7 2007/03/28 00:53:43 ping Exp $
 
 import pygame
 AUDIO_DONE = pygame.USEREVENT
@@ -26,14 +26,14 @@ class Audio:
 
 def make_sound(rate, data):
     [comp_channels, sample_size] = ["\x01\x00\x01\x00", "\x02\x00\x10\x00"]
-    fmt = comp_channels + putint(rate) + putint(rate*2) + sample_size
+    fmt = comp_channels + put_int(rate) + put_int(rate*2) + sample_size
     file = chunk("RIFF", "WAVE" + chunk("fmt ", fmt) + chunk("data", data))
     return pygame.mixer.Sound(Buffer(file))
 
 def chunk(type, contents):
-    return type + putint(len(contents)) + contents
+    return type + put_int(len(contents)) + contents
 
-def putint(n):
+def put_int(n):
     [a, b, c, d] = [n/16777216, n/65536, n/256, n]
     return chr(d % 256) + chr(c % 256) + chr(b % 256) + chr(a % 256)
 

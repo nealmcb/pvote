@@ -1,23 +1,28 @@
-# $Id: Printer.py,v 1.5 2007/03/12 09:28:34 ping Exp $
+# $Id: Printer.py,v 1.9 2007/03/28 22:36:28 ping Exp $
 
 class Printer:
     def __init__(self, text):
         self.text = text
 
     def write(self, selections):
-        for [group_i, options] in enumerate(selections):
-            if len(options):
-                group = self.text.groups[group_i]
-                line = group.name + ':'
-                while len(line) < 55:
-                    line = line + ' '
-                if group.writein:
-                    for option in options:
-                        line = line + group.options[option]
-                    print line
+        for [group_i, selection] in enumerate(selections):
+            group = self.text.groups[group_i]
+            if group.writein:
+                if len(selection):
+                    print "\n+ " + group.name
+                    line = ""
+                    for option_i in selection:
+                        if len(line) + len(group.options[option_i]) + 1 > 60:
+                            print "= " + line
+                            line = ""
+                        line = line + group.options[option_i] + "~"
+                    print "= " + line
+            else:
+                if len(selection):
+                    print "\n* " + group.name
+                    for [option_i, option] in enumerate(group.options):
+                        if option_i in selection:
+                            print "- " + option
                 else:
-                    for option in options:
-                        print line + group.options[option]
-                        line = ' '*55
-                print
-        print '\f'
+                    print "\n* " + group.name + " ~ NO SELECTION"
+        print "\n~\f"

@@ -1,5 +1,5 @@
 #!/usr/bin/python
-# $Id: run,v 1.9 2007/03/13 06:20:11 ping Exp $
+# $Id: main.py,v 1.2 2007/03/28 22:36:28 ping Exp $
 
 import Ballot, verifier, Audio, Video, Printer, Navigator, pygame
 
@@ -15,15 +15,18 @@ navigator = Navigator.Navigator(ballot.model, audio, video, printer)
 
 while 1:
     pygame.display.update()
+    pygame.time.set_timer(TIMER_DONE, ballot.model.timeout_ms)
     event = pygame.event.wait()
+    pygame.time.set_timer(TIMER_DONE, 0)
+
+    if event.type == pygame.KEYDOWN:
+        navigator.press(event.key)
+    if event.type == pygame.MOUSEBUTTONDOWN:
+        [x, y] = event.pos
+        target_i = video.locate(x, y)
+        if target_i != None:
+            navigator.touch(target_i)
     if event.type == AUDIO_DONE:
         audio.next()
     if event.type == TIMER_DONE and not audio.playing:
         navigator.timeout()
-    if event.type == pygame.MOUSEBUTTONDOWN:
-        target_i = video.locate(*event.pos)
-        if target_i != None:
-            navigator.touch(target_i)
-    if event.type == pygame.KEYDOWN:
-        navigator.press(event.key)
-    pygame.time.set_timer(TIMER_DONE, ballot.model.timeout_ms)

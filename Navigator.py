@@ -7,15 +7,17 @@ class Navigator:
         self.model = model
         [self.audio, self.video, self.printer] = [audio, video, printer]
         self.selections = [[] for group in model.groups]
+        self.page_i = None
         self.goto(0, 0)
-        self.update()
 
     def goto(self, page_i, state_i):
-        if page_i + 1 == len(self.model.pages):
-            self.printer.write(self.selections)
-        [self.page_i, self.page] = [page_i, self.model.pages[page_i]]
-        [self.state_i, self.state] = [state_i, self.page.states[state_i]]
-        self.play(self.state.segments, None)
+        if page_i != None and self.page_i != len(self.model.pages) - 1:
+            if page_i == len(self.model.pages) - 1:
+                self.printer.write(self.selections)
+            [self.page_i, self.page] = [page_i, self.model.pages[page_i]]
+            [self.state_i, self.state] = [state_i, self.page.states[state_i]]
+            self.play(self.state.segments)
+        self.update()
 
     def update(self):
         self.video.goto(self.page_i)
@@ -23,10 +25,10 @@ class Navigator:
 
         slot_i = len(self.page.states) 
         for area in self.page.option_areas:
-            selected = area.option_i in self.selections[area.group_i]
+            unselected = area.option_i not in self.selections[area.group_i]
             group = self.model.groups[area.group_i]
             option = group.options[area.option_i]
-            self.video.paste(option.sprite_i + selected, slot_i)
+            self.video.paste(option.sprite_i + unselected, slot_i)
             slot_i = slot_i + 1
 
         for area in self.page.counter_areas:
@@ -43,7 +45,7 @@ class Navigator:
         for i in range(group.max_sels):
             if i < len(selections):
                 option = group.options[selections[i]]
-                self.video.paste(option.sprite_i + 1, slot_i)
+                self.video.paste(option.sprite_i, slot_i)
                 if option.writein_group_i != None:
                     self.review(option.writein_group_i, slot_i + 1, None)
             if i == len(selections) and cursor_sprite_i != None:
@@ -54,12 +56,12 @@ class Navigator:
     def press(self, key):
         for binding in self.state.bindings + self.page.bindings:
             if key == binding.key and self.test(binding.conditions):
-                return self.trigger(binding)
+                return self.invoke(binding)
 
     def touch(self, target_i):
         for binding in self.state.bindings + self.page.bindings:
             if target_i == binding.target_i and self.test(binding.conditions):
-                return self.trigger(binding)
+                return self.invoke(binding)
 
     def test(self, conditions):
         for cond in conditions:
@@ -75,15 +77,12 @@ class Navigator:
                 return 0
         return 1
 
-    def trigger(self, binding):
-        step = None
+    def invoke(self, binding):
         for step in binding.steps:
             self.execute(step)
         self.audio.stop()
-        self.play(binding.segments, step)
-        if binding.next_page_i != None:
-            self.goto(binding.next_page_i, binding.next_state_i)
-        self.update()
+        self.play(binding.segments)
+        self.goto(binding.next_page_i, binding.next_state_i)
 
     def execute(self, step):
         [group_i, option_i] = self.get_option(step)
@@ -91,13 +90,11 @@ class Navigator:
         selections = self.selections[group_i]
         selected = option_i in selections
 
-        if step.op == OP_ADD and not selected:
+        if step.op == OP_ADD and not selected or step.op == OP_APPEND:
             if len(selections) < group.max_sels:
                 selections.append(option_i)
         if step.op == OP_REMOVE and selected:
             selections.remove(option_i)
-        if step.op == OP_APPEND and len(selections) < group.max_sels:
-            selections.append(option_i)
 
         if step.op == OP_POP and len(selections) > 0:
             selections.pop()
@@ -105,19 +102,16 @@ class Navigator:
             self.selections[group_i] = []
 
     def timeout(self):
-        self.play(self.state.timeout_segments, None)
-        if self.state.timeout_page_i != None:
-            self.goto(self.state.timeout_page_i, self.state.timeout_state_i)
-        self.update()
+        self.play(self.state.timeout_segments)
+        self.goto(self.state.timeout_page_i, self.state.timeout_state_i)
 
-    def play(self, segments, step):
+    def play(self, segments):
         for segment in segments:
             if self.test(segment.conditions):
                 if segment.type == SG_CLIP:
                     self.audio.play(segment.clip_i)
                 else:
-                    object = [segment, step][segment.use_step]
-                    [group_i, option_i] = self.get_option(object)
+                    [group_i, option_i] = self.get_option(segment)
                     group = self.model.groups[group_i]
                     selections = self.selections[group_i]
 

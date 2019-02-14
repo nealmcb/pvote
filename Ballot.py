@@ -1,12 +1,21 @@
-# $Id: Ballot.py,v 1.21 2007/03/15 21:38:09 ping Exp $
+# $Id: Ballot.py,v 1.26 2007/03/28 22:36:28 ping Exp $
+
+import sha
 
 class Ballot:
     def __init__(self, stream):
         assert stream.read(8) == "Pvote\x00\x01\x00"
-        self.model = Model(stream)
-        self.text = Text(stream)
-        self.audio = Audio(stream)
-        self.video = Video(stream)
+        [self.stream, self.sha] = [stream, sha.sha()]
+        self.model = Model(self)
+        self.text = Text(self)
+        self.audio = Audio(self)
+        self.video = Video(self)
+        assert self.sha.digest() == stream.read(20)
+
+    def read(self, length):
+        data = self.stream.read(length)
+        self.sha.update(data)
+        return data
 
 class Model:
     def __init__(self, stream):
@@ -42,30 +51,7 @@ class State:
         self.bindings = get_list(stream, Binding)
         self.timeout_segments = get_list(stream, Segment)
         self.timeout_page_i = get_int(stream, 1)
-        self.timeout_state_i = get_int(stream, 1)
-
-class Binding:
-    def __init__(self, stream):
-        self.key = get_int(stream, 1)
-        self.target_i = get_int(stream, 1)
-        self.conditions = get_list(stream, Condition)
-        self.steps = get_list(stream, Step)
-        self.segments = get_list(stream, Segment)
-        self.next_page_i = get_int(stream, 1)
-        self.next_state_i = get_int(stream, 1)
-
-class Condition:
-    def __init__(self, stream):
-        self.predicate = get_int(stream, 0)
-        self.group_i = get_int(stream, 1)
-        self.option_i = get_int(stream, 0)
-        self.invert = get_int(stream, 0)
-
-class Step:
-    def __init__(self, stream):
-        self.op = get_int(stream, 0)
-        self.group_i = get_int(stream, 1)
-        self.option_i = get_int(stream, 0)
+        self.timeout_state_i = get_int(stream, 0)
 
 class OptionArea:
     def __init__(self, stream):
@@ -82,14 +68,36 @@ class ReviewArea:
         self.group_i = get_int(stream, 0)
         self.cursor_sprite_i = get_int(stream, 1)
 
+class Binding:
+    def __init__(self, stream):
+        self.key = get_int(stream, 1)
+        self.target_i = get_int(stream, 1)
+        self.conditions = get_list(stream, Condition)
+        self.steps = get_list(stream, Step)
+        self.segments = get_list(stream, Segment)
+        self.next_page_i = get_int(stream, 1)
+        self.next_state_i = get_int(stream, 0)
+
+class Condition:
+    def __init__(self, stream):
+        self.predicate = get_enum(stream, 3)
+        self.group_i = get_int(stream, 1)
+        self.option_i = get_int(stream, 0)
+        self.invert = get_enum(stream, 2)
+
+class Step:
+    def __init__(self, stream):
+        self.op = get_enum(stream, 5)
+        self.group_i = get_int(stream, 1)
+        self.option_i = get_int(stream, 0)
+
 class Segment:
     def __init__(self, stream):
         self.conditions = get_list(stream, Condition)
-        self.type = get_int(stream, 0)
+        self.type = get_enum(stream, 5)
         self.clip_i = get_int(stream, 0)
         self.group_i = get_int(stream, 1)
         self.option_i = get_int(stream, 0)
-        self.use_step = get_int(stream, 0)
 
 class Text:
     def __init__(self, stream):
@@ -98,7 +106,7 @@ class Text:
 class TextGroup:
     def __init__(self, stream):
         self.name = get_str(stream)
-        self.writein = get_int(stream, 0)
+        self.writein = get_enum(stream, 2)
         self.options = get_list(stream, get_str)
 
 class Audio:
@@ -136,13 +144,22 @@ class Rect:
         self.width = get_int(stream, 0)
         self.height = get_int(stream, 0)
 
-def get_list(stream, Class):
-    return [Class(stream) for i in range(get_int(stream, 0))]
-
 def get_int(stream, allow_none):
     [a, b, c, d] = list(stream.read(4))
-    if not allow_none or a + b + c + d != "\xff\xff\xff\xff":
+    if ord(a) < 128:
         return ord(a)*16777216 + ord(b)*65536 + ord(c)*256 + ord(d)
+    assert allow_none and a + b + c + d == "\xff\xff\xff\xff"
+
+def get_enum(stream, cardinality):
+    value = get_int(stream, 0)
+    assert value < cardinality
+    return value
 
 def get_str(stream):
-    return stream.read(get_int(stream, 0))
+    str = stream.read(get_int(stream, 0))
+    for ch in list(str):
+        assert 32 <= ord(ch) <= 125
+    return str
+
+def get_list(stream, Class):
+    return [Class(stream) for i in range(get_int(stream, 0))]
