@@ -1,0 +1,30 @@
+#!/usr/bin/python
+# $Id: run,v 1.7 2007/01/30 05:24:42 ping Exp $
+
+import Ballot, Navigator, Video, Audio, Recorder
+from pygame import display, event, time, MOUSEBUTTONDOWN, KEYDOWN, USEREVENT
+
+ballot = Ballot.Ballot('ballot', 1)
+video = Video.Video(ballot.video)
+audio = Audio.Audio(ballot.audio)
+recorder = Recorder.Recorder(ballot)
+navigator = Navigator.Navigator(ballot.model, video, audio, recorder)
+
+while 1:
+    display.update()
+    e = event.wait()
+    if e.type == USEREVENT:
+        if not audio.next() and ballot.model.timeout_milliseconds > 0:
+            time.set_timer(USEREVENT + 1, ballot.model.timeout_milliseconds)
+    if e.type in [USEREVENT + 1, MOUSEBUTTONDOWN, KEYDOWN]:
+        time.set_timer(USEREVENT + 1, 0)
+    if e.type == USEREVENT + 1:
+        navigator.timeout()
+    if e.type == MOUSEBUTTONDOWN:
+        target_i = video.locate(*e.pos)
+        if target_i is not None:
+            navigator.touch(target_i)
+    if e.type == KEYDOWN:
+        navigator.key(e.key)
+        if e.key == 27:
+            break

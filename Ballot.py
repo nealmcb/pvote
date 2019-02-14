@@ -1,151 +1,147 @@
-# $Id: Ballot.py,v 1.15 2007/11/23 07:38:39 ping Exp $
+# $Id: Ballot.py,v 1.16 2007/01/30 07:26:43 ping Exp $
 
 class Ballot:
-    def __init__(self, filename):
+    def __init__(self, filename, rotate=0):
         self.data = open(filename).read()
         stream = open(filename)
-        self.sprite_n = subpage_n = 0
-        self.model = m = Model(self, stream)
-        self.imagelib = il = Imagelib(self, stream)
-        assert stream.read(1) == ''
+        self.model = Model(stream)
+        self.video = Video(stream)
+        self.audio = Audio(stream)
 
-        assert m.pages and m.contests
-        assert len(m.pages) + len(m.subpages) == len(il.layouts)
-        assert len(il.sprites) == self.sprite_n
-
-        items = [[] for c in m.contests]
-        chars = [[] for c in m.contests]
-        for i, p in enumerate(m.pages):
-            for t in p.targets:
-                assert t.action in [0, 1, 2]
-                assert 0 <= t.page_i < len(m.pages)
-            for x in p.targets + p.options + p.writeins + p.reviews:
-                assert 0 <= x.contest_i < len(m.contests)
-
-            slots = il.layouts[i].slots
-            slot = len(p.targets)
-            for i, o in enumerate(p.options):
-                items[o.contest_i] += [slots[slot + i], il.sprites[o.sprite_i]]
-
-            slot += len(p.options)
-            for w in p.writeins:
-                items[w.contest_i] += [slots[slot], il.sprites[w.sprite_i]]
-                max_chars = m.contests[w.contest_i].max_chars
-                chars[w.contest_i] += slots[slot + 1:slot + 1 + max_chars]
-                slot += 1 + max_chars
-
-            for r in p.reviews:
-                max_chars = m.contests[r.contest_i].max_chars
-                for i in range(m.contests[r.contest_i].max_sels):
-                    items[r.contest_i] += [slots[slot]]
-                    chars[r.contest_i] += slots[slot + 1:slot + 1 + max_chars]
-                    slot += 1 + max_chars
-
-        flags = [0 for c in m.contests]
-        for p in m.pages:
-            for w in p.writeins:
-                flags[w.contest_i] = 1
-        for i, c in enumerate(m.contests):
-            if flags[i]:
-                c.subpage_i, subpage_n = subpage_n, subpage_n + 1
-                p = m.subpages[c.subpage_i]
-                slots = il.layouts[len(m.pages) + c.subpage_i].slots
-                assert len(p.subtargets) + c.max_chars == len(slots)
-                chars[i] += slots[len(p.subtargets):]
-                for t in p.subtargets:
-                    assert t.action in [0, 1, 2, 3, 4, 5]
-                    if t.action in [0, 1]:
-                        chars[i] += [il.sprites[t.sprite_i]]
-                chars[i] += [il.sprites[p.cursor_i]]
-        assert len(m.subpages) == subpage_n
-
-        for l, b in [(l, l.background) for l in il.layouts]:
-            assert (b.width, b.height) == (il.width, il.height)
-            for slot in l.slots:
-                assert 0 <= slot.left < slot.left + slot.width < il.width
-                assert 0 <= slot.top < slot.top + slot.height < il.height
-
-        for list in items + chars:
-            for x in list:
-                assert (x.width, x.height) == (list[0].width, list[0].height)
+        rotated = []
+        for contest in self.model.contests:
+            rotated.append(range(len(contest.options)))
+            if rotate:
+                import random
+                random.shuffle(rotated[-1])
+        for page in self.model.pages:
+            for area in page.option_areas:
+                area.option_i = i = rotated[area.contest_i].pop(0)
+                area.option = self.model.contests[area.contest_i].options[i]
 
 class Model:
-    def __init__(self, ballot, stream):
-        self.contests = getlist(ballot, stream, Contest)
-        self.pages = getlist(ballot, stream, Page)
-        self.subpages = getlist(ballot, stream, Subpage)
+    def __init__(self, stream):
+        self.contests = getlist(stream, Contest)
+        self.pages = getlist(stream, Page)
+        self.timeout_milliseconds = getint(stream)
+
+class Video:
+    def __init__(self, stream):
+        self.size = self.width, self.height = getint(stream), getint(stream)
+        self.layouts = getlist(stream, Layout)
+        self.sprites = getlist(stream, Image)
+
+class Audio:
+    def __init__(self, stream):
+        self.sample_rate = getint(stream)
+        self.clips = getlist(stream, Clip)
 
 class Contest:
-    def __init__(self, ballot, stream):
+    def __init__(self, stream):
         self.max_sels = getint(stream)
-        self.max_chars = getint(stream)
-
-class Page:
-    def __init__(self, ballot, stream):
-        self.targets = getlist(ballot, stream, Target)
-        self.options = getlist(ballot, stream, Option)
-        self.writeins = getlist(ballot, stream, Writein)
-        self.reviews = getlist(ballot, stream, Review)
-
-class Target:
-    def __init__(self, ballot, stream):
-        self.action = getint(stream)
-        self.page_i = getint(stream)
-        self.contest_i = (self.action == 1 and [getint(stream)] or [0])[0]
+        self.options = getlist(stream, Option)
 
 class Option:
-    def __init__(self, ballot, stream):
+    def __init__(self, stream):
+        self.unsel_sprite_i = getint(stream)
+        self.sel_sprite_i = getint(stream)
+        self.clip_i = getint(stream)
+
+class Page:
+    def __init__(self, stream):
+        self.key_bindings = getlist(stream, KeyBinding)
+        self.target_bindings = getlist(stream, TargetBinding)
+        self.states = getlist(stream, State)
+        self.option_areas = getlist(stream, OptionArea)
+        self.counter_areas = getlist(stream, CounterArea)
+        self.review_areas = getlist(stream, ReviewArea)
+
+class KeyBinding:
+    def __init__(self, stream):
+        self.key = getint(stream)
+        self.action = Action(stream)
+
+class TargetBinding:
+    def __init__(self, stream):
+        self.action = Action(stream)
+
+class Action:
+    def __init__(self, stream):
+        self.clear_contest_is = getlist(stream, getint)
+        self.select_option_refs = getlist(stream, OptionRef)
+        self.option_area_i = getint(stream)
+        self.option_area_action = getint(stream)
+        self.default_sequence = Sequence(stream)
+        self.no_change_sequence = Sequence(stream)
+        self.overvote_sequence = Sequence(stream)
+        self.toggle_deselect_sequence = Sequence(stream)
+        self.next_page_i = getint(stream)
+        self.next_state_i = getint(stream)
+
+class OptionRef:
+    def __init__(self, stream):
         self.contest_i = getint(stream)
-        self.sprite_i, ballot.sprite_n = ballot.sprite_n, ballot.sprite_n + 1
+        self.option_i = getint(stream)
 
-class Writein:
-    def __init__(self, ballot, stream):
+class State:
+    def __init__(self, stream):
+        self.sprite_i = getint(stream)
+        self.option_area_i = getint(stream)
+        self.entry_sequence = Sequence(stream)
+        self.key_bindings = getlist(stream, KeyBinding)
+        self.timeout_sequence = Sequence(stream)
+        self.timeout_page_i = getint(stream)
+        self.timeout_state_i = getint(stream)
+
+class OptionArea:
+    def __init__(self, stream):
         self.contest_i = getint(stream)
-        self.sprite_i, ballot.sprite_n = ballot.sprite_n, ballot.sprite_n + 1
 
-class Review:
-    def __init__(self, ballot, stream):
+class CounterArea:
+    def __init__(self, stream):
+        self.contest_i = getint(stream)
+        self.number_sprite_i = getint(stream)
+
+class ReviewArea:
+    def __init__(self, stream):
         self.contest_i = getint(stream)
 
-class Subpage:
-    def __init__(self, ballot, stream):
-        self.subtargets = getlist(ballot, stream, Subtarget)
-        self.cursor_i, ballot.sprite_n = ballot.sprite_n, ballot.sprite_n + 1
-    
-class Subtarget:
-    def __init__(self, ballot, stream):
-        self.action = getint(stream)
-        if self.action in [0, 1]:
-            self.sprite_i, ballot.sprite_n = ballot.sprite_n, ballot.sprite_n + 1
+class Sequence:
+    def __init__(self, stream):
+        self.segments = getlist(stream, Segment)
 
-class Imagelib:
-    def __init__(self, ballot, stream):
-        self.width = getint(stream)
-        self.height = getint(stream)
-        self.layouts = getlist(ballot, stream, Layout)
-        self.sprites = getlist(ballot, stream, Image)
+class Segment:
+    def __init__(self, stream):
+        self.type = getint(stream)
+        self.clip_i = getint(stream)
+        self.contest_i = getint(stream)
+
+class Clip:
+    def __init__(self, stream):
+        self.length = getint(stream)
+        self.samples = stream.read(self.length * 2)
 
 class Layout:
-    def __init__(self, ballot, stream):
-        self.background = Image(ballot, stream)
-        self.slots = getlist(ballot, stream, Slot)
+    def __init__(self, stream):
+        self.screen = Image(stream)
+        self.targets = getlist(stream, Rect)
+        self.slots = getlist(stream, Rect)
 
-class Slot:
-    def __init__(self, ballot, stream):
+class Rect:
+    def __init__(self, stream):
         self.left = getint(stream)
         self.top = getint(stream)
         self.width = getint(stream)
         self.height = getint(stream)
 
 class Image:
-    def __init__(self, ballot, stream):
-        self.width = getint(stream)
-        self.height = getint(stream)
+    def __init__(self, stream):
+        self.size = self.width, self.height = getint(stream), getint(stream)
         self.pixels = stream.read(self.width * self.height * 3)
 
-def getlist(ballot, stream, Class):
-    return [Class(ballot, stream) for i in range(getint(stream))]
+def getlist(stream, Class):
+    return [Class(stream) for i in range(getint(stream))]
 
 def getint(stream):
-    bytes = [ord(char) for char in stream.read(4)]
-    return (bytes[0]<<24) + (bytes[1]<<16) + (bytes[2]<<8) + bytes[3]
+    import struct
+    return struct.unpack('>l', stream.read(4))[0]

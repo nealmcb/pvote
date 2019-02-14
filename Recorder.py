@@ -1,4 +1,4 @@
-# $Id: Recorder.py,v 1.10 2006/03/30 08:19:42 ping Exp $
+# $Id: Recorder.py,v 1.2 2007/01/30 05:20:46 ping Exp $
 
 import sha
 
@@ -17,9 +17,7 @@ class Recorder:
             size = getint(file)
         for i, contest in enumerate(selections):
             for selection in contest:
-                item = self.hash + putint(i)
-                for n in selection:
-                    item += putint(n)
+                item = self.hash + putint(i) + putint(selection)
                 items += [item]
         items.sort()
         start = 0
