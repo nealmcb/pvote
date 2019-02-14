@@ -4,7 +4,7 @@
 import Ballot, Navigator, Video, Audio, Recorder
 from pygame import display, event, time, MOUSEBUTTONDOWN, KEYDOWN, USEREVENT
 
-ballot = Ballot.Ballot('ballot', 1)
+ballot = Ballot.Ballot('ballot', 0)
 video = Video.Video(ballot.video)
 audio = Audio.Audio(ballot.audio)
 recorder = Recorder.Recorder(ballot)

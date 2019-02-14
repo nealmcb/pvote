@@ -115,6 +115,7 @@ class Segment:
         self.type = getint(stream)
         self.clip_i = getint(stream)
         self.contest_i = getint(stream)
+        self.option_i = getint(stream)
 
 class Clip:
     def __init__(self, stream):

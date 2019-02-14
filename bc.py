@@ -19,9 +19,11 @@ links = LinkMap()
 # Constants for hardware keys.
 # TODO: audio speed control keys
 KUP, KDOWN, KLEFT, KRIGHT, KSELECT, KYES, KNO = map(ord, '8kuoijl')
+KBACK = ord('7')
+KCAST = ord(',')
 
 # Constants for audio segment types.
-SCLIP, SSTATE, SACTION, SSELECTED, SNUMSELECTED, SMAXSELS = range(6)
+SCLIP, SOPTION, SSTATE, SACTION, SSELECTED, SNUMSELECTED, SMAXSELS = range(7)
 
 # Constants for option selection actions.
 ASELECT, ADESELECT, ATOGGLE = range(3)
@@ -62,7 +64,8 @@ class Clip:
             possibilities = []
             for i in range(1, len(words) + 1):
                 prefix = ' '.join(words[:i])
-                nopunc = ' '.join(re.sub('[;:,.-]', ' ', prefix).split())
+                nopunc = ' '.join(
+                    re.sub('[/();:,-]|\. +|\.$', ' ', prefix).split())
                 if nopunc in self.clips:
                     possibilities.append((i, nopunc))
                 if prefix in self.clips:
@@ -125,7 +128,7 @@ class Action(Struct):
 
     def __init__(self, next_page_i=-1, next_state_i=-1,
                        clear_contest_is=None, select_option_refs=None,
-                       option_area_i=-1, option_area_action=0,
+                       option_area_i=-1, option_area_action=-1,
                        default_sequence=None, no_change_sequence=None,
                        overvote_sequence=None, toggle_deselect_sequence=None):
         self.next_page_i = next_page_i
@@ -198,8 +201,9 @@ class State(Struct):
         self.timeout_state_i = timeout_state_i
 
 class Segment(Struct):
-    def __init__(self, type, clip_i, contest_i=-1):
-        Struct.__init__(self, 'type clip_i contest_i', type, clip_i, contest_i)
+    def __init__(self, type, clip_i, contest_i=-1, option_i=-1):
+        Struct.__init__(self, 'type clip_i contest_i option_i',
+                              type, clip_i, contest_i, option_i)
 
 class Sequence(Struct):
     __members__ = 'segments'.split()
@@ -213,8 +217,8 @@ class Sequence(Struct):
             else:
                 if text:
                     segments.append(Segment(0, Clip(audio, text).clip_i))
-                type, clip_i, contest_i = (arg + (-1,))[:3]
-                segments.append(Segment(type, clip_i, contest_i))
+                print arg
+                segments.append(Segment(*arg))
                 text = ''
         if text:
             segments.append(Segment(0, Clip(audio, text).clip_i))
@@ -235,7 +239,7 @@ def layout_option_box(selected=1):
                     stroke=GREY, weight=1, fill=option_unselected_bg)
     return Box((rect, (0.5, 0.5)), padding=0.5)
 
-def layout_option_highlight(w, h):
+def layout_highlight_box(w, h):
     offset = highlight_weight/2.0 + highlight_gap
     radius = option_radius + offset
     rect = Rect(w - 1 + offset*2, h - 1 + offset*2,
@@ -253,39 +257,66 @@ def layout_option(option, selected=1):
     check = selected and [(layout_check(), (16, 0), 'MW')] or []
     return Box((Box([(box, 0, 'MW'), (text, 0, 'MW')] + check), 0, 'NW'))
 
-def layout_options(options, columns=1, selected=0):
-    blocks = {}
-    options = options[:]
+def layout_columns(elements, hspace, vspace, columns=1):
+    elements = elements[:]
     n = rows = 0
-    while n < len(options):
+    while n < len(elements):
         n += columns
         rows += 1
     vboxes = []
-    while options:
-        boxes = []
-        for o in options[:rows]:
-            blocks[o] = optionbox = layout_option(o, selected)
-            boxes.append(optionbox)
-        vboxes.append(VBox(boxes, int=1, spacing=option_vspace))
-        options = options[rows:]
-    return HBox(vboxes, int=1, spacing=option_hspace), blocks
+    while elements:
+        vboxes.append(VBox(elements[:rows], int=1, spacing=vspace))
+        elements[:rows] = []
+    return HBox(vboxes, int=1, spacing=hspace)
 
-def layout_contest(section, contest):
+def layout_selection_page(section, contest):
+    headings = VBox([SectionHeadingText(section.name),
+                     ContestHeadingText(contest.name),
+                     DirectionsText(contest.directions)],
+                    int=1, align='C', spacing=12)
     if contest.question:
         details = VBox([ContestSubtitleText(contest.subtitle),
                         ContestQuestionText(contest.question)],
-                       spacing=24, fs=300)
-        headings = VBox([SectionHeadingText(section.name),
-                         ContestHeadingText(contest.name),
-                         DirectionsText(''), details],
-                        int=1, align='C', spacing=12)
-    else:
-        headings = VBox([SectionHeadingText(section.name),
-                         ContestHeadingText(contest.name),
-                         DirectionsText(contest.directions)],
-                        int=1, align='C', spacing=12)
-    options, blocks = layout_options(contest.options)
-    return VBox([Space(0, 48), headings, Space(0, 32), options],
+                       spacing=24, fs=250)
+        headings = VBox([headings, details],
+                        int=1, align='C', spacing=48)
+    blocks = {}
+    elements = []
+    for option in contest.options:
+        blocks[option] = layout_option(option, 0)
+        elements.append(blocks[option])
+    options = layout_columns(elements, option_hspace, option_vspace, 1)
+    return VBox([Space(0, 48), headings, Space(0, 48), options],
+                int=1, align='C'), blocks
+
+def layout_review():
+    lines = [ReviewEmptyText('No selection made'),
+             DescriptionText('Touch this box to make a selection.')]
+    text = OptionContent(lines)
+    box = layout_option_box(0)
+    return Box((Box([(box, 0, 'MW'), (text, 0, 'MW')]), 0, 'NW'))
+    
+def layout_review_page(section):
+    headings = VBox([SectionHeadingText(section.name),
+                     ContestHeadingText('Review Your Selections'),
+                     DirectionsText(
+                        'Touch any contest to change your selections.')],
+                    int=1, align='C', spacing=12)
+    blocks = {}
+    elements = []
+    for contest in section.contests:
+        lines = [ReviewTitleText(contest.name)]
+        if contest.subtitle:
+            lines.append(ReviewSubtitleText(contest.subtitle))
+        label = ReviewLabel(lines)
+        review_box = layout_review()
+        element = VBox([label, review_box],
+                       int=1, align='C', spacing=review_label_vspace)
+        elements.append(element)
+        blocks[(contest, 'slot')] = review_box
+        blocks[contest] = element
+    reviews = layout_columns(elements, review_hspace, review_vspace, 1)
+    return VBox([Space(0, 48), headings, Space(0, 48), reviews],
                 int=1, align='C'), blocks
 
 blockmaps = {}
@@ -299,12 +330,15 @@ def update_blockmap(canvas, dict={}, **blocks):
         bw, bn, be, bs = map(int, canvas.locate(dict[key]))
         blockmaps[canvas][key] = (bw, bn, be - bw, bs - bn)
 
-def place_contest(canvas, ballot, contest):
-    for section in ballot.sections:
-        if contest in section.contests:
-            content, blocks = layout_contest(section, contest)
-            canvas.add(content, 'NC', 'NC')
-            update_blockmap(canvas, blocks)
+def place_selection_page(canvas, contest):
+    content, blocks = layout_selection_page(contest.section, contest)
+    canvas.add(content, 'NC', 'NC')
+    update_blockmap(canvas, blocks)
+
+def place_review_page(canvas, section):
+    content, blocks = layout_review_page(section)
+    canvas.add(content, 'NC', 'NC')
+    update_blockmap(canvas, blocks)
 
 def layout_button(text):
     rect = Rect(button_w - 1, button_h - 1, radius=18,
@@ -313,7 +347,7 @@ def layout_button(text):
     return Box([(box, 0, 'MC'), (ButtonText(text), 0, 'MC')])
 
 def place_ballot_label(canvas, ballot):
-    canvas.add(NoteText(ballot.name), (10, 10), 'NW')
+    canvas.add(Box(NoteText(ballot.name), padding=6), 'SC', 'SC')
 
 def place_navigation(canvas, previous=True, next=True):
     if previous:
@@ -326,18 +360,25 @@ def place_navigation(canvas, previous=True, next=True):
         update_blockmap(canvas, next=button)
 
 def place_instructions(canvas, title, text):
-    paragraphs = text.replace('\n\n', '\n.\n').split('\n')
+    paragraphs = text.replace('\n\n', '\n~\n').split('\n')
     canvas.add(VBox([Space(0, 48), TitleText(title), Space(0, 32),
                      VBox([InstructionsText(paragraph)
                            for paragraph in paragraphs], spacing=6)]),
                'NC', 'NC')
 
-def place_highlight(canvas, option):
-    x, y, w, h = blockmaps[canvas][option]
-    highlight = layout_option_highlight(w, h)
+def place_highlight(canvas, option_or_contest):
+    x, y, w, h = blockmaps[canvas][option_or_contest]
+    highlight = layout_highlight_box(w, h)
     canvas.add(highlight, (x, y), under=0)
     update_blockmap(canvas, highlight=highlight)
     return highlight
+
+def place_confirmation(canvas):
+    rbutton = layout_button('Review')
+    cbutton = layout_button('Cast Ballot')
+    canvas.add(HBox([rbutton, cbutton], spacing=60), 'MC', 'MC')
+    update_blockmap(canvas, review=rbutton)
+    update_blockmap(canvas, cast=cbutton)
 
 # -------------------------------------------------- ballot instructions
 
@@ -410,14 +451,37 @@ def compile(ballot):
     for section in ballot.sections:
         for contest in section.contests:
             canvas = Box([], 0, 0, 1024, 768)
-            place_contest(canvas, ballot, contest)
+            place_selection_page(canvas, contest)
             canvases.append(canvas)
             links[canvas].contest = contest
-            links[canvas].section = section
             links[contest].canvas = canvas
             links[contest].i = contest_i
             contest_i += 1
     num_contests = contest_i
+
+    # Add the review pages.
+    for section in ballot.sections:
+        canvas = Box([], 0, 0, 1024, 768)
+        place_review_page(canvas, section)
+        canvases.append(canvas)
+        links[canvas].section = section
+        links[section].canvas = canvas
+
+    # Add the confirmation page.
+    canvas = Box([], 0, 0, 1024, 768)
+    place_instructions(canvas, 'Are You Ready to Cast Your Ballot?',
+                       'This is your last chance to review your selections '
+                       'before casting your ballot.')
+    links[canvas].confirmation = 1
+    canvases.append(canvas)
+
+    # Add the completion page.
+    canvas = Box([], 0, 0, 1024, 768)
+    canvas.add(VBox([CompletionText('Thank you for voting.'),
+                     CompletionText('Your ballot has been recorded.')],
+                    spacing=6, align='C'), 'MC', 'MC')
+    links[canvas].completion = 1
+    canvases.append(canvas)
 
     for page_i, canvas in enumerate(canvases):
         # Create a page and corresponding layout for each canvas.
@@ -436,13 +500,23 @@ def compile(ballot):
         links[page].contest = links[canvas].contest
         links[page].instructions = links[canvas].instructions
         links[page].section = links[canvas].section
+        if links[canvas].contest:
+            links[links[canvas].contest].page = page
+        if links[canvas].instructions:
+            links[links[canvas].instructions].page = page
+        if links[canvas].section:
+            links[links[canvas].section].page = page
+
+    first_review_page_i = min(
+        [page_i for page_i, page in enumerate(model.pages)
+                if links[page].section])
 
     for page_i, page in enumerate(model.pages):
         # Add the navigation buttons to each page.
         layout = links[page].layout
         canvas = links[page].canvas
-        previous = page_i > 0
-        next = page_i < len(model.pages) - 1
+        previous = 0 < page_i < len(model.pages) - 1
+        next = page_i < len(model.pages) - 2
         place_navigation(canvas, previous, next)
 
         # Add the behaviours for the navigation buttons.
@@ -453,12 +527,19 @@ def compile(ballot):
             add_target(layout, canvas, 'next', 0, Action(page_i + 1, 0))
             page.key_bindings.append((KRIGHT, Action(page_i + 1, 0)))
 
+        # Add navigation for the confirmation screen.
+        if links[canvas].confirmation:
+            place_confirmation(canvas)
+            add_target(layout, canvas, 'review', 0,
+                Action(first_review_page_i, 0))
+            add_target(layout, canvas, 'cast', 0, Action(page_i + 1, 0))
+
         # Render the page image.
         print 'render page:', page_i
         place_ballot_label(canvas, ballot)
         video.layouts[page_i].screen = Image(canvas)
+        canvas.write('output/p%02d.png' % page_i)
 
-    sprite_i = 0
     for page_i, page in enumerate(model.pages):
         # Create the default state for each page.
         print 'page:', page_i
@@ -469,8 +550,8 @@ def compile(ballot):
         page.states.append(state)
 
         if links[page].contest:
-            section = links[page].section
             contest = links[page].contest
+            section = contest.section
             contest_i = links[contest].i
             print 'contest:', contest, contest_i
 
@@ -549,14 +630,15 @@ def compile(ballot):
 
         if links[page].contest and contest.question:
             add(state.key_bindings, (KYES, Action(
-                -1, -1, [contest_i], [], 0, ASELECT,
-                Sequence(audio, 'Selected', (SACTION, 0),
+                -1, -1, [contest_i], [(contest_i, 0)], -1, -1,
+                Sequence(audio, 'Selected', (SOPTION, 0, contest_i, 0),
                          'on', contest.name))))
             add(state.key_bindings, (KNO, Action(
-                -1, -1, [contest_i], [], 1, ASELECT,
-                Sequence(audio, 'Selected', (SACTION, 0),
+                -1, -1, [contest_i], [(contest_i, 1)], -1, -1,
+                Sequence(audio, 'Selected', (SOPTION, 0, contest_i, 1),
                          'on', contest.name))))
-            state = State(-1, -1, Sequence(audio, contest.question,
+            state = State(-1, -1, Sequence(audio,
+                contest.subtitle, '@@', contest.question,
                 '@ To hear the text of this proposition again, '
                 'press 8. @ Touch your selection on the screen, '
                 'or @ to select yes, press 7; to select no, press 9.'))
@@ -564,12 +646,12 @@ def compile(ballot):
             layout.slots.append((0, 0, 0, 0))
             add(state.key_bindings, (KDOWN, Action(page_i, 1)))
             add(state.key_bindings, (KYES, Action(
-                -1, -1, [contest_i], [], 0, ASELECT,
-                Sequence(audio, 'Selected', (SACTION, 0),
+                -1, -1, [contest_i], [(contest_i, 0)], -1, -1,
+                Sequence(audio, 'Selected', (SOPTION, 0, contest_i, 0),
                          'on', contest.name))))
             add(state.key_bindings, (KNO, Action(
-                -1, -1, [contest_i], [], 1, ASELECT,
-                Sequence(audio, 'Selected', (SACTION, 0),
+                -1, -1, [contest_i], [(contest_i, 1)], -1, -1,
+                Sequence(audio, 'Selected', (SOPTION, 0, contest_i, 1),
                          'on', contest.name))))
 
             for option_i, option in enumerate(contest.options):
@@ -620,6 +702,94 @@ def compile(ballot):
                 page.option_areas.append(contest_i)
                 add_slot(layout, canvas, option, 4)
 
+        if links[page].section:
+            # Review page.
+            print 'review'
+            section = links[page].section
+
+            add(state.key_bindings, (KDOWN, Action(page_i, 1)))
+
+            # Add the default state's entrance sound.
+            text = ['Review your selections before casting your ballot. ',
+                    '@ To change your selections for any contest, ',
+                    'touch that contest on the screen. ',
+                    '@ Use the NEXT and PREVIOUS buttons ',
+                    'to move from page to page. ',
+                    '@ Or, to hear your selections read back to you, press 8.']
+            state.entry_sequence = Sequence(audio, *text)
+
+            for i, contest in enumerate(section.contests):
+                # Add a state for each contest.
+                highlight = place_highlight(canvas, contest)
+                left, top, width, height = blockmaps[canvas][contest]
+                x, y = int(left - 8), int(top - 8)
+                w, h = width + 16, height + 16
+                layout.slots.append((x, y, w, h))
+                image = Image(canvas, x=-x, y=-y, width=w, height=h)
+                sprite_i = add(video.sprites, image)
+                canvas.remove(highlight)
+
+                contest_i = links[contest].i
+
+                # Add the state's entrance sound.
+                sel_zero = Clip(audio,
+                    'You have not made a selection for ' + contest.name).clip_i
+                sel_one = Clip(audio, 'Your current selection is').clip_i
+                edit_zero = Clip(audio, 'To make a selection').clip_i
+                edit_one = Clip(audio, 'To change your selection').clip_i
+                text = [contest.name, (SNUMSELECTED, sel_zero, contest_i),
+                        (SSELECTED, 0, contest_i), '@',
+                        (SNUMSELECTED, edit_zero, contest_i), 'press 5.']
+                if contest_i < num_contests - 1:
+                    text += ['@ For the next contest, press 8.']
+                else:
+                    text += ['@ To proceed with casting your ballot, press 6.']
+                if contest_i > 0:
+                    text += ['@ For the previous contest, press 2.']
+                sequence = Sequence(audio, *text)
+
+                state = State(sprite_i, -1, sequence)
+                state_i = add(page.states, state)
+
+                # Add the state's navigation behaviours.
+                if i > 0:
+                    add(state.key_bindings, (KUP, Action(page_i, state_i-1)))
+                elif contest_i > 0:
+                    add(state.key_bindings, (KUP, Action(page_i-1,
+                        len(model.pages[page_i-1].states) - 1)))
+                if i < len(section.contests) - 1:
+                    add(state.key_bindings, (KDOWN, Action(page_i, state_i+1)))
+                elif contest_i < num_contests - 1:
+                    add(state.key_bindings, (KDOWN, Action(page_i+1, 1)))
+                else:
+                    add(state.key_bindings, (KDOWN, Action(-1, -1,
+                        default_sequence = Sequence(audio,
+                            'This is the last contest. @',
+                            'To proceed with casting your ballot, press 6.'))))
+
+                # Add the state's selection behaviour.
+                action = Action(links[links[contest].page].i, 0)
+                add(state.key_bindings, (KSELECT, action))
+
+            for contest_i, contest in enumerate(section.contests):
+                # Add the review area to the page.
+                page.review_areas.append(links[contest].i)
+                add_slot(layout, canvas, (contest, 'slot'), 4)
+                add_target(layout, canvas, contest, 4,
+                           Action(links[links[contest].page].i, 0))
+
+        if links[canvas].confirmation:
+            state.entry_sequence = Sequence(audio,
+                'This is your last chance to review your selections ',
+                'before casting your ballot. @ To review your selections, ',
+                'press 1.  To cast your ballot now, press 0.')
+            add(state.key_bindings, (KBACK, Action(first_review_page_i, 0)))
+            add(state.key_bindings, (KCAST, Action(page_i + 1, 0)))
+
+        if links[canvas].completion:
+            state.entry_sequence = Sequence(audio,
+                'Thank you for voting.  Your ballot has been recorded.')
+
     ballot = Struct('model video audio', model, video, audio)
     return serialize(ballot)
 
@@ -634,10 +804,10 @@ def test_render(ballot):
     for si, section in enumerate(ballot.sections[:1]):
         for ci, contest in enumerate(section.contests):
             page = Box([], 0, 0, 1024, 768)
-            place_contest(page, ballot, contest)
+            place_selection_page(page, contest)
             place_navigation(page)
             x, y, w, h = blockmaps[page][contest.options[0]]
-            highlight = layout_option_highlight(w, h)
+            highlight = layout_highlight_box(w, h)
             page.add(highlight, (x, y), under=0)
             page.write('output/%d-%d.png' % (si + 1, ci + 1))
 

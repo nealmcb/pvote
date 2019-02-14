@@ -1,9 +1,9 @@
 def make_directions(maxsels):
-    return {1: 'Vote for ONE',
-            2: 'Vote for up to TWO',
-            3: 'Vote for up to THREE',
-            4: 'Vote for up to FOUR',
-            5: 'Vote for up to FIVE'}[maxsels]
+    return {1: 'Vote for ONE.',
+            2: 'Vote for up to TWO.',
+            3: 'Vote for up to THREE.',
+            4: 'Vote for up to FOUR.',
+            5: 'Vote for up to FIVE.'}[maxsels]
     
 class Named:
     def __repr__(self):
@@ -18,6 +18,8 @@ class Section(Named):
     def __init__(self, name, contests=[]):
         self.name = name
         self.contests = contests
+        for contest in contests:
+            contest.section = self
 
 class Contest(Named):
     def __init__(self, name, maxsels, options=[],
@@ -26,6 +28,8 @@ class Contest(Named):
         self.maxsels = maxsels
         self.options = options
         self.directions = directions or make_directions(maxsels)
+        if question and maxsels == 1 and len(options) == 2:
+            self.directions = 'Choose YES or NO.'
         self.subtitle = subtitle
         self.question = question
 
@@ -131,8 +135,6 @@ This act rebuilds and repairs California's most vulnerable...
                 ''')])])
 
 ballot.sections[1:2] = []
-ballot.sections[0].contests[1:-1] = []
-ballot.sections[1].contests[1:] = []
-
-ballot.sections[0].contests[1:] = []
-ballot.sections[1].contests[1:] = []
+ballot.sections[0].contests[1:2] = []
+ballot.sections[0].contests[2:] = []
+ballot.sections[1].contests[2:] = []

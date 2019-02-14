@@ -491,6 +491,8 @@ class Paragraph(VBox):
         blocks = []
         row = ''
         for word in self.text.split():
+            if word == '~':
+                word = ' '
             newrow = row and (row + ' ' + word) or word
             if self.font.measure(newrow, self.size) > self.width:
                 blocks.append(Row(row))

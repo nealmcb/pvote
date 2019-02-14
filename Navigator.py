@@ -32,7 +32,7 @@ class Navigator:
             slot_i += 1
 
         for area in self.page.review_areas:
-            contest = self.model.contest[area.contest_i]
+            contest = self.model.contests[area.contest_i]
             selections = self.selections[area.contest_i]
             for i in range(contest.max_sels):
                 if i < len(selections):
@@ -88,19 +88,23 @@ class Navigator:
             if segment.type == 0:
                 self.audio.play(segment.clip_i)
             elif segment.type == 1:
+                contest = self.model.contests[segment.contest_i]
+                option = contest.options[segment.option_i]
+                self.audio.play(option.clip_i + segment.clip_i)
+            elif segment.type == 2:
                 area = self.page.option_areas[self.state.option_area_i]
                 self.audio.play(area.option.clip_i + segment.clip_i)
-            elif segment.type == 2:
+            elif segment.type == 3:
                 area = self.page.option_areas[action_option_area_i]
                 self.audio.play(area.option.clip_i + segment.clip_i)
-            elif segment.type == 3:
+            elif segment.type == 4:
                 contest = self.model.contests[segment.contest_i]
                 for selection in self.selections[segment.contest_i]:
                     option = contest.options[selection]
                     self.audio.play(option.clip_i + segment.clip_i)
-            elif segment.type == 4:
+            elif segment.type == 5:
                 count = len(self.selections[segment.contest_i])
                 self.audio.play(segment.clip_i + count)
-            elif segment.type == 5:
+            elif segment.type == 6:
                 contest = self.model.contests[segment.contest_i]
                 self.audio.play(segment.clip_i + contest.max_sels)

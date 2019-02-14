@@ -5,7 +5,7 @@ bold = Font('LucidaGrandeBold.ttf')
 
 # Navigation.
 
-button_w, button_h = 160, 56
+button_w, button_h = 200, 56
 button_bg = blend(BLACK, WHITE, 0.8)
 ButtonText = lambda t: Text(t.upper(), font=bold, size=16)
 
@@ -54,3 +54,18 @@ highlight_gap = 5
 highlight_weight = 5
 highlight_stroke = Color(0.8, 0.4, 0.4)
 highlight_dash = [5, 2]
+
+# Review pages.
+
+ReviewLabel = curry(VBox, align='C', int=1, spacing=2)
+ReviewTitleText = OptionText
+ReviewSubtitleText = lambda t: Paragraph(
+    t, 324, font=regular, size=12, spacing=3, align='C')
+ReviewEmptyText = lambda t: Text(t.upper(), font=bold, size=16, fill=RED)
+review_hspace = option_hspace
+review_vspace = option_vspace
+review_label_vspace = 4
+
+# Completion page.
+
+CompletionText = curry(Text, font=bold, size=24)
