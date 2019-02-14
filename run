@@ -1,30 +1,29 @@
 #!/usr/bin/python
-# $Id: run,v 1.9 2007/02/13 02:27:05 ping Exp $
+# $Id: run,v 1.9 2007/03/13 06:20:11 ping Exp $
 
-import Ballot, Navigator, Video, Audio, Recorder
-from pygame import display, event, time, MOUSEBUTTONDOWN, KEYDOWN, USEREVENT
+import Ballot, verifier, Audio, Video, Printer, Navigator, pygame
 
-ballot = Ballot.Ballot('ballot', 0)
-video = Video.Video(ballot.video)
+AUDIO_DONE = pygame.USEREVENT
+TIMER_DONE = pygame.USEREVENT + 1
+
+ballot = Ballot.Ballot(open("ballot"))
+verifier.verify(ballot)
 audio = Audio.Audio(ballot.audio)
-recorder = Recorder.Recorder(ballot)
-navigator = Navigator.Navigator(ballot.model, video, audio, recorder)
+video = Video.Video(ballot.video)
+printer = Printer.Printer(ballot.text)
+navigator = Navigator.Navigator(ballot.model, audio, video, printer)
 
 while 1:
-    display.update()
-    e = event.wait()
-    if e.type == USEREVENT:
-        if not audio.next() and ballot.model.timeout_milliseconds > 0:
-            time.set_timer(USEREVENT + 1, ballot.model.timeout_milliseconds)
-    if e.type in [USEREVENT + 1, MOUSEBUTTONDOWN, KEYDOWN]:
-        time.set_timer(USEREVENT + 1, 0)
-    if e.type == USEREVENT + 1:
+    pygame.display.update()
+    event = pygame.event.wait()
+    if event.type == AUDIO_DONE:
+        audio.next()
+    if event.type == TIMER_DONE and not audio.playing:
         navigator.timeout()
-    if e.type == MOUSEBUTTONDOWN:
-        target_i = video.locate(*e.pos)
-        if target_i is not None:
+    if event.type == pygame.MOUSEBUTTONDOWN:
+        target_i = video.locate(*event.pos)
+        if target_i != None:
             navigator.touch(target_i)
-    if e.type == KEYDOWN:
-        navigator.key(e.key)
-        if e.key == 27:
-            break
+    if event.type == pygame.KEYDOWN:
+        navigator.press(event.key)
+    pygame.time.set_timer(TIMER_DONE, ballot.model.timeout_ms)
