@@ -1,4 +1,4 @@
-# $Id: Video.py,v 1.4 2007/01/29 20:17:49 ping Exp $
+# $Id: Video.py,v 1.5 2007/01/31 00:38:53 ping Exp $
 
 from pygame import display, image, FULLSCREEN
 
