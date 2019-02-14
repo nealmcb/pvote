@@ -1,5 +1,5 @@
 #!/usr/bin/python
-# $Id: run,v 1.8 2006/03/30 05:29:32 ping Exp $
+# $Id: run,v 1.10 2007/11/23 07:38:39 ping Exp $
 
 import Ballot, Navigator, Recorder, Video
 from pygame import display, event, MOUSEBUTTONDOWN, KEYDOWN

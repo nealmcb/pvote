@@ -1,6 +1,6 @@
-# $Id: Video.py,v 1.7 2006/03/30 08:19:42 ping Exp $
+# $Id: Video.py,v 1.9 2007/11/23 07:38:39 ping Exp $
 
-from pygame import display, image
+from pygame import display, image, FULLSCREEN
 
 def loadimage(i):
     return image.fromstring(i.pixels, (i.width, i.height), 'RGB')
@@ -8,7 +8,7 @@ def loadimage(i):
 class Video:
     def __init__(self, il):
         display.init()
-        self.screen = display.set_mode((il.width, il.height), 0)
+        self.screen = display.set_mode((il.width, il.height), FULLSCREEN)
         self.backgrounds = [loadimage(l.background) for l in il.layouts]
         self.layouts = [l.slots for l in il.layouts]
         self.sprites = [loadimage(sprite) for sprite in il.sprites]

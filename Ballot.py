@@ -1,4 +1,4 @@
-# $Id: Ballot.py,v 1.13 2006/03/30 08:19:42 ping Exp $
+# $Id: Ballot.py,v 1.15 2007/11/23 07:38:39 ping Exp $
 
 class Ballot:
     def __init__(self, filename):

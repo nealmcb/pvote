@@ -1,4 +1,4 @@
-# $Id: Navigator.py,v 1.5 2006/03/30 08:19:42 ping Exp $
+# $Id: Navigator.py,v 1.7 2007/11/23 07:38:39 ping Exp $
 
 class Navigator:
     def __init__(self, model, video, recorder):
@@ -35,9 +35,8 @@ class Navigator:
             for writein in self.page.writeins:
                 for selection in self.selections[writein.contest_i]:
                     if selection[0] == writein.sprite_i:
-                        self.video.paste(writein.sprite_i, slot_i)
-                        for i, sprite_i in enumerate(selection[1:]):
-                            self.video.paste(sprite_i, slot_i + 1 + i)
+                        for j, sprite_i in enumerate(selection):
+                            self.video.paste(sprite_i, slot_i + j)
                 slot_i += 1 + self.model.contests[writein.contest_i].max_chars
 
             for review in self.page.reviews:
@@ -45,9 +44,8 @@ class Navigator:
                 selections = self.selections[review.contest_i]
                 for i in range(contest.max_sels):
                     if i < len(selections):
-                        self.video.paste(selections[i][0], slot_i)
-                        for i, sprite_i in enumerate(selections[i][1:]):
-                            self.video.paste(sprite_i, slot_i + 1 + i)
+                        for j, sprite_i in enumerate(selections[i]):
+                            self.video.paste(sprite_i, slot_i + j)
                     slot_i += 1 + contest.max_chars
 
     def activate(self, slot_i):
@@ -95,7 +93,7 @@ class Navigator:
                     for i, selection in enumerate(selections):
                         if selection[0] == writein.sprite_i:
                             self.writein, self.chars = writein, selection[1:]
-                            selections[i:i+1] = []
+                            selections[i:i + 1] = []
                             break
                     else:
                         if len(selections) < contest.max_sels:
